@@ -1,99 +1,96 @@
 import pygame
 
-def main():
-    pygame.init()
-    screen = pygame.display.set_mode((640, 480))
-    clock = pygame.time.Clock()
+def rectangle(surf, cur, end, d, color):
+    x1, y1, x2, y2 = cur[0], cur[1], end[0], end[1] 
+    a = abs(x1-x2)
+    b = abs(y1-y2)
+    pygame.draw.rect(surf, color, (min(x1, x2), min(y1, y2), a, b), d)
 
-    radius = 15
-    mode = 'blue'
-    points = []
-    drawing = False
-    eraser_mode = False
+def pen(surf, cur, end, d, color):
+    pygame.draw.line(surf, color, cur, end, d)
 
-    while True:
+def circle(surf, cur, end, d, color):
+    x1, y1, x2, y2 = cur[0], cur[1], end[0], end[1]
+    a = abs(x1-x2)
+    b = abs(y1-y2)
+    pygame.draw.circle(surf, color, (min(x1,x2)+a/2, min(y1, y2)+b/2), min(a, b)/2, d)
 
-        for event in pygame.event.get():
+def eraser(surf, cur):
+    x1, y1 = cur[0], cur[1]
+    pygame.draw.circle(surf, "Black", (x1, y1), 20)
 
-            if event.type == pygame.QUIT:
-                return
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    return
-                if event.key == pygame.K_r:
-                    mode = 'red'
-                elif event.key == pygame.K_g:
-                    mode = 'green'
-                elif event.key == pygame.K_b:
-                    mode = 'blue'
-                elif event.key == pygame.K_c:  # Draw circle
-                    mode = 'circle'
-                elif event.key == pygame.K_e:  # Eraser
-                    eraser_mode = not eraser_mode
-                elif event.key == pygame.K_t:  # Draw rectangle
-                    mode = 'rectangle'
+FPS = 60
+WIDTH = 640
+HEIGHT = 480
 
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:  # left click grows radius
-                    radius = min(200, radius + 1)
-                elif event.button == 3:  # right click shrinks radius
-                    radius = max(1, radius - 1)
-                if mode in ['rectangle', 'circle']:
-                    drawing = True
-                    start_pos = event.pos
-            elif event.type == pygame.MOUSEBUTTONUP:
-                if mode in ['rectangle', 'circle']:
-                    drawing = False
-            elif event.type == pygame.MOUSEMOTION:
-                if drawing:
-                    end_pos = event.pos
-                    if mode == 'rectangle':
-                        pygame.draw.rect(screen, pygame.Color(mode), (start_pos, (end_pos[0] - start_pos[0], end_pos[1] - start_pos[1])), 3)
-                    elif mode == 'circle':
-                        pygame.draw.circle(screen, pygame.Color(mode), start_pos, max(abs(end_pos[0] - start_pos[0]), abs(end_pos[1] - start_pos[1])), 3)
-                elif eraser_mode and event.buttons[0]:  # Erase while left mouse button is held
-                    pygame.draw.circle(screen, (0, 0, 0), event.pos, radius)
+pygame.init()
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption('Paint')
+baseLayer = pygame.Surface((640, 480))
+clock = pygame.time.Clock()
 
-        screen.fill((255, 255, 255))
+mode = "Rectangle"
+color = "Red"
+isMouseDown = False
+currentX = -1
+currentY = -1
+prevX = -1
+prevY = -1
 
-        # draw all points
-        i = 0
-        while i < len(points) - 1:
-            drawLineBetween(screen, i, points[i], points[i + 1], radius, mode)
-            i += 1
 
-        pygame.display.flip()
+running = True
 
-        clock.tick(60)
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+            pygame.quit()
 
-def drawLineBetween(screen, index, start, end, width, color_mode):
-    c1 = max(0, min(255, 2 * index - 256))
-    c2 = max(0, min(255, 2 * index))
+        if event.type == pygame.KEYDOWN:
+            #Color switches
+            if event.key == pygame.K_r:
+                color = "Red"
+            if event.key == pygame.K_b:
+                color = "Blue"
+            if event.key == pygame.K_g:
+                color = "Green"
+            if event.key == pygame.K_w:
+                color = "White"
+            
+            #Tool switches
+            if event.key == pygame.K_1:
+                mode = "Rectangle"
+            if event.key == pygame.K_2:
+                mode = "Circle"
+            if event.key == pygame.K_3:
+                mode = "Pen"
+            if event.key == pygame.K_4:
+                mode = "Eraser"
 
-    if color_mode == 'blue':
-        color = (c1, c1, c2)
-    elif color_mode == 'red':
-        color = (c2, c1, c1)
-    elif color_mode == 'green':
-        color = (c1, c2, c1)
-    elif color_mode in ['rectangle', 'circle']:
-        color = pygame.Color(color_mode)
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            xnow = event.pos[0]
+            ynow = event.pos[1]
+            last_pos = (xnow, ynow)
+            isMouseDown = True
+        if event.type == pygame.MOUSEBUTTONUP:
+            isMouseDown = False
+            baseLayer.blit(screen, (0,0))
+        if event.type == pygame.MOUSEMOTION:
+            if isMouseDown == True:
+                if mode == 'Pen':
+                    pen(baseLayer, last_pos, (xnow, ynow), 1, color)
+                    last_pos = (xnow, ynow)
+                xnow = event.pos[0]
+                ynow = event.pos[1]
 
-    dx = start[0] - end[0]
-    dy = start[1] - end[1]
-    iterations = max(abs(dx), abs(dy))
+    if isMouseDown == True and last_pos[0] != -1 and last_pos[1] != -1 and xnow != -1 and ynow != -1:
+        screen.blit(baseLayer, (0, 0))
+        if mode == 'Rectangle':
+            rectangle(screen, last_pos, (xnow, ynow), 1, color)
+        elif mode == 'Circle':
+            circle(screen, last_pos, (xnow, ynow), 1, color)
+        elif mode == "Eraser":
+            eraser(baseLayer, (xnow, ynow))
 
-    for i in range(iterations):
-        progress = 1.0 * i / max(1, iterations)
-        aprogress = 1 - progress
-        x = int(aprogress * start[0] + progress * end[0])
-        y = int(aprogress * start[1] + progress * end[1])
-        if color_mode in ['rectangle', 'circle']:
-            if color_mode == 'rectangle':
-                pygame.draw.rect(screen, color, (start, (end[0] - start[0], end[1] - start[1])), 3)
-            elif color_mode == 'circle':
-                pygame.draw.circle(screen, color, start, max(abs(end[0] - start[0]), abs(end[1] - start[1])), 3)
-        else:
-            pygame.draw.circle(screen, color, (x, y), width)
-
-main()
+    pygame.display.update()
+    clock.tick(144)
